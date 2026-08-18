@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FENRIS</title>
+<style>
+  :root {
+    --bg: #04070d;
+    --panel: rgba(10, 20, 34, 0.72);
+    --line: rgba(64, 156, 255, 0.18);
+    --text: #cfe4ff;
+    --dim: #5d7ba3;
+    --accent: #35c7ff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background: radial-gradient(1200px 800px at 35% 45%, #0a1524 0%, var(--bg) 65%);
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, sans-serif;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    display: flex;
+    align-items: baseline;
+    gap: 18px;
+    padding: 18px 28px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  header h1 {
+    font-size: 22px;
+    letter-spacing: 0.55em;
+    font-weight: 300;
+    color: var(--accent);
+    text-shadow: 0 0 18px rgba(53, 199, 255, 0.55);
+  }
+  #stateLabel {
+    font-size: 12px;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+  #conn { margin-left: auto; font-size: 11px; letter-spacing: 0.2em; color: var(--dim); }
+  #conn.ok { color: #4ad6a4; }
+  #clock { font-size: 12px; color: var(--dim); letter-spacing: 0.15em; }
+  main { flex: 1; display: flex; min-height: 0; }
+  #orbWrap { flex: 1.2; position: relative; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #panel {
+    flex: 1;
+    max-width: 480px;
+    border-left: 1px solid var(--line);
+    background: var(--panel);
+    backdrop-filter: blur(6px);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  #panel h2 {
+    font-size: 11px;
+    letter-spacing: 0.4em;
+    color: var(--dim);
+    padding: 14px 20px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  #log { flex: 1; overflow-y: auto; padding: 14px 20px; scrollbar-width: thin; }
+  .msg { margin-bottom: 14px; animation: rise 0.25s ease-out; }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+  .msg .who {
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    color: var(--dim);
+  }
+  .msg .bubble {
+    display: inline-block;
+    padding: 9px 13px;
+    border-radius: 10px;
+    font-size: 14px;
+    line-height: 1.45;
+    max-width: 95%;
+  }
+  .msg.user .bubble {
+    background: rgba(53, 199, 255, 0.10);
+    border: 1px solid rgba(53, 199, 255, 0.25);
+  }
+  .msg.fenris .who { color: #57e6c0; }
+  .msg.fenris .bubble {
+    background: rgba(87, 230, 192, 0.08);
+    border: 1px solid rgba(87, 230, 192, 0.22);
+  }
+  .msg .media {
+    display: block;
+    max-width: 100%;
+    max-height: 320px;
+    border-radius: 10px;
+    margin-top: 6px;
+    border: 1px solid rgba(87, 230, 192, 0.22);
+    background: rgba(4, 10, 20, 0.6);
+  }
+  .msg .caption {
+    font-size: 12px;
+    color: var(--dim);
+    margin-top: 5px;
+  }
+  #hint {
+    padding: 10px 20px 6px;
+    font-size: 11px;
+    color: var(--dim);
+    letter-spacing: 0.05em;
+  }
+  #composer {
+    border-top: 1px solid var(--line);
+    padding: 12px 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  #attachments { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 12px;
+    background: rgba(53, 199, 255, 0.12);
+    border: 1px solid rgba(53, 199, 255, 0.3);
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .chip button { background: none; border: none; color: var(--dim); cursor: pointer; font-size: 13px; }
+  #composerRow { display: flex; gap: 8px; align-items: flex-end; }
+  #text {
+    flex: 1;
+    resize: none;
+    min-height: 40px;
+    max-height: 120px;
+    background: rgba(4, 10, 20, 0.8);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    color: var(--text);
+    padding: 10px 12px;
+    font-family: inherit;
+    font-size: 14px;
+  }
+  #text:focus { outline: none; border-color: rgba(53, 199, 255, 0.5); }
+  .iconbtn {
+    background: rgba(53, 199, 255, 0.10);
+    border: 1px solid rgba(53, 199, 255, 0.28);
+    color: var(--accent);
+    border-radius: 10px;
+    height: 40px;
+    min-width: 44px;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  .iconbtn:hover { background: rgba(53, 199, 255, 0.2); }
+  #send { color: #57e6c0; border-color: rgba(87, 230, 192, 0.35); background: rgba(87, 230, 192, 0.12); }
+</style>
+</head>
+<body>
+<header>
+  <h1>FENRIS</h1>
+  <span id="stateLabel">OFFLINE</span>
+  <span id="conn">CONNECTING…</span>
+  <span id="clock"></span>
+</header>
+<main>
+  <div id="orbWrap"><canvas id="orb"></canvas></div>
+  <section id="panel">
+    <h2>TRANSCRIPT</h2>
+    <div id="log"></div>
+    <div id="hint">Say “Fenris” to wake · or type below · attach 📎 a document or image</div>
+    <div id="composer">
+      <div id="attachments"></div>
+      <div id="composerRow">
+        <button class="iconbtn" id="attach" title="Attach document or image">📎</button>
+        <textarea id="text" rows="1" placeholder="Type a message to Fenris…"></textarea>
+        <button class="iconbtn" id="send" title="Send">➤</button>
+      </div>
+      <input type="file" id="file" multiple accept="image/*,.pdf,.docx,.txt,.md,.csv,.json,.log" style="display:none">
+    </div>
+  </section>
+</main>
+<script>
+(() => {
+  const STATES = {
+    sleeping:  { label: "STANDBY",   color: [70, 110, 190],  glow: 0.35, speed: 0.25, pulse: 0.04 },
+    idle:      { label: "ONLINE",    color: [53, 199, 255],  glow: 0.55, speed: 0.5,  pulse: 0.05 },
+    listening: { label: "LISTENING", color: [53, 199, 255],  glow: 0.9,  speed: 0.8,  pulse: 0.10 },
+    thinking:  { label: "THINKING",  color: [255, 179, 71],  glow: 0.85, speed: 2.4,  pulse: 0.07 },
+    speaking:  { label: "SPEAKING",  color: [87, 230, 192],  glow: 1.0,  speed: 1.1,  pulse: 0.16 },
+  };
+  let state = "sleeping";
+  let displayed = { color: [70, 110, 190], glow: 0.35, speed: 0.25, pulse: 0.04 };
+
+  const stateLabel = document.getElementById("stateLabel");
+  const connLabel = document.getElementById("conn");
+  const log = document.getElementById("log");
+  const clock = document.getElementById("clock");
+  setInterval(() => { clock.textContent = new Date().toLocaleTimeString(); }, 500);
+
+  function addMessage(kind, who, text) {
+    const wrap = document.createElement("div");
+    wrap.className = "msg " + kind;
+    const whoEl = document.createElement("div");
+    whoEl.className = "who";
+    whoEl.textContent = who;
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+    bubble.textContent = text;
+    wrap.append(whoEl, bubble);
+    log.appendChild(wrap);
+    while (log.children.length > 200) log.removeChild(log.firstChild);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function addMedia({ kind, url, caption }) {
+    const wrap = document.createElement("div");
+    wrap.className = "msg fenris";
+    const whoEl = document.createElement("div");
+    whoEl.className = "who";
+    whoEl.textContent = "fenris";
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+    const media = document.createElement(kind === "video" ? "video" : "img");
+    media.className = "media";
+    media.src = url;
+    if (kind === "video") { media.controls = true; }
+    else { media.loading = "lazy"; media.alt = caption || "image"; }
+    bubble.appendChild(media);
+    if (caption) {
+      const captionEl = document.createElement("div");
+      captionEl.className = "caption";
+      captionEl.textContent = caption;
+      bubble.appendChild(captionEl);
+    }
+    wrap.append(whoEl, bubble);
+    log.appendChild(wrap);
+    while (log.children.length > 200) log.removeChild(log.firstChild);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function setState(value) {
+    if (!STATES[value]) return;
+    state = value;
+    stateLabel.textContent = STATES[value].label;
+  }
+
+  let socket = null;
+  function connect() {
+    const ws = new WebSocket(`ws://${location.host}/ws`);
+    socket = ws;
+    ws.onopen = () => { connLabel.textContent = "LINKED"; connLabel.className = "ok"; };
+    ws.onmessage = (raw) => {
+      let event;
+      try { event = JSON.parse(raw.data); } catch { return; }
+      if (event.type === "state") setState(event.value);
+      else if (event.type === "user") addMessage("user", event.speaker || "you", event.text);
+      else if (event.type === "fenris") addMessage("fenris", "fenris", event.text);
+      else if (event.type === "media") addMedia(event);
+    };
+    ws.onclose = () => {
+      connLabel.textContent = "RECONNECTING…";
+      connLabel.className = "";
+      socket = null;
+      setTimeout(connect, 2000);
+    };
+    ws.onerror = () => ws.close();
+  }
+  connect();
+
+  // ---- Composer (typing + uploads) ----------------------------------
+  const textEl = document.getElementById("text");
+  const fileEl = document.getElementById("file");
+  const attachEl = document.getElementById("attach");
+  const sendEl = document.getElementById("send");
+  const attachList = document.getElementById("attachments");
+  const MAX_BYTES = 15 * 1024 * 1024;
+  let pending = []; // {name, mime, data(base64)}
+
+  function renderAttachments() {
+    attachList.innerHTML = "";
+    pending.forEach((att, index) => {
+      const chip = document.createElement("span");
+      chip.className = "chip";
+      chip.textContent = (att.mime.startsWith("image/") ? "🖼 " : "📄 ") + att.name;
+      const x = document.createElement("button");
+      x.textContent = "✕";
+      x.onclick = () => { pending.splice(index, 1); renderAttachments(); };
+      chip.appendChild(x);
+      attachList.appendChild(chip);
+    });
+  }
+
+  function readFile(file) {
+    return new Promise((resolve) => {
+      if (file.size > MAX_BYTES) { resolve(null); return; }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result || "";
+        const base64 = String(result).split(",")[1] || "";
+        resolve({ name: file.name, mime: file.type || "application/octet-stream", data: base64 });
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  attachEl.onclick = () => fileEl.click();
+  fileEl.onchange = async () => {
+    for (const file of fileEl.files) {
+      const att = await readFile(file);
+      if (att) pending.push(att);
+      else addMessage("fenris", "fenris", `“${file.name}” is too large (max 15 MB).`);
+    }
+    fileEl.value = "";
+    renderAttachments();
+  };
+
+  function send() {
+    const text = textEl.value.trim();
+    if (!text && pending.length === 0) return;
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      addMessage("fenris", "fenris", "Not connected yet — try again in a moment.");
+      return;
+    }
+    socket.send(JSON.stringify({ type: "submit", text, attachments: pending }));
+    const labels = pending.map((a) => (a.mime.startsWith("image/") ? "🖼 " : "📄 ") + a.name).join(" ");
+    addMessage("user", "you", (text + " " + labels).trim());
+    textEl.value = "";
+    pending = [];
+    renderAttachments();
+  }
+
+  sendEl.onclick = send;
+  textEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+  });
+
+  // ---- Orb ----------------------------------------------------------
+  const canvas = document.getElementById("orb");
+  const ctx = canvas.getContext("2d");
+  let W = 0, H = 0;
+  function resize() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    W = canvas.width = rect.width * devicePixelRatio;
+    H = canvas.height = rect.height * devicePixelRatio;
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  const particles = Array.from({ length: 70 }, () => ({
+    angle: Math.random() * Math.PI * 2,
+    radius: 0.55 + Math.random() * 0.75,
+    speed: 0.1 + Math.random() * 0.5,
+    size: 0.6 + Math.random() * 1.6,
+  }));
+
+  let t = 0;
+  function lerp(a, b, k) { return a + (b - a) * k; }
+
+  function draw() {
+    requestAnimationFrame(draw);
+    const target = STATES[state];
+    displayed.glow = lerp(displayed.glow, target.glow, 0.06);
+    displayed.speed = lerp(displayed.speed, target.speed, 0.06);
+    displayed.pulse = lerp(displayed.pulse, target.pulse, 0.08);
+    for (let i = 0; i < 3; i++) displayed.color[i] = lerp(displayed.color[i], target.color[i], 0.06);
+
+    t += 0.016 * displayed.speed;
+    const [r, g, b] = displayed.color.map(Math.round);
+    const cx = W / 2, cy = H / 2;
+    const base = Math.min(W, H) * 0.21;
+    const breath = 1 + Math.sin(t * 3.1) * displayed.pulse + Math.sin(t * 7.3) * displayed.pulse * 0.5;
+    const R = base * breath;
+
+    ctx.clearRect(0, 0, W, H);
+
+    // core glow
+    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 2.4);
+    grad.addColorStop(0, `rgba(${r},${g},${b},${0.32 * displayed.glow})`);
+    grad.addColorStop(0.45, `rgba(${r},${g},${b},${0.10 * displayed.glow})`);
+    grad.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    // inner core
+    const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.62);
+    core.addColorStop(0, `rgba(255,255,255,${0.75 * displayed.glow})`);
+    core.addColorStop(0.35, `rgba(${r},${g},${b},${0.55 * displayed.glow})`);
+    core.addColorStop(1, `rgba(${r},${g},${b},0)`);
+    ctx.fillStyle = core;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R * 0.62, 0, Math.PI * 2);
+    ctx.fill();
+
+    // rotating arcs
+    ctx.lineCap = "round";
+    const rings = [
+      { rad: R * 1.05, width: 2.2, arc: 1.9, dir: 1, off: 0 },
+      { rad: R * 1.28, width: 1.4, arc: 1.1, dir: -1, off: 2.1 },
+      { rad: R * 1.28, width: 1.4, arc: 0.7, dir: -1, off: 4.9 },
+      { rad: R * 1.55, width: 1.0, arc: 2.6, dir: 1, off: 1.2 },
+    ];
+    for (const ring of rings) {
+      const start = ring.off + t * ring.dir;
+      ctx.strokeStyle = `rgba(${r},${g},${b},${0.65 * displayed.glow})`;
+      ctx.lineWidth = ring.width * devicePixelRatio;
+      ctx.beginPath();
+      ctx.arc(cx, cy, ring.rad, start, start + ring.arc);
+      ctx.stroke();
+    }
+
+    // faint full rings
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = `rgba(${r},${g},${b},${0.14 * displayed.glow})`;
+    for (const rad of [R * 1.05, R * 1.28, R * 1.55]) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // particles
+    for (const p of particles) {
+      p.angle += 0.002 * p.speed * displayed.speed * 60 * 0.016;
+      const px = cx + Math.cos(p.angle) * R * (1.1 + p.radius);
+      const py = cy + Math.sin(p.angle) * R * (1.1 + p.radius) * 0.55;
+      ctx.fillStyle = `rgba(${r},${g},${b},${0.35 * displayed.glow})`;
+      ctx.beginPath();
+      ctx.arc(px, py, p.size * devicePixelRatio * 0.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  draw();
+})();
+</script>
+</body>
+</html>

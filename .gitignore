@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Secrets & config — never commit these
+.env
+
+# Personal / runtime data: voice profiles, conversation + audit databases
+data/
+*.sqlite3
+logs/
+
+# Training artifacts: generated datasets (contain your conversations) and
+# model outputs (adapters, merged models, GGUF — large and personal).
+# Note: training/seed_pairs.json IS tracked (it's your hand-written template);
+# only the generated files below are ignored.
+training/seed.jsonl
+training/real.jsonl
+training/dataset.jsonl
+training/output/
+*.gguf
+*.safetensors
+*.bin
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

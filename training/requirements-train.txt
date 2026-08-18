@@ -1,0 +1,10 @@
+# Training-only dependencies — deliberately kept separate from the app's
+# requirements.txt. Heavy (torch, CUDA), only needed on the machine/GPU
+# actually running training, not on the Fenris runtime host.
+torch>=2.1
+transformers>=4.44
+peft>=0.12
+trl>=0.9
+datasets>=2.20
+bitsandbytes>=0.43
+accelerate>=0.33
