@@ -189,7 +189,13 @@ class WebBrowserAddon(Addon):
         if action == "browse":
             return self._browse(payload, session_key)
         if action == "interact":
-            if not confirmed:
+            # Autonomous Charweb collection has no human to approve each step, so
+            # the confirmation gate would loop forever. CHARWEB_AUTOCONFIRM=1
+            # treats interact as pre-approved. Only set it for unattended
+            # research runs, never for a real assistant serving a person.
+            import os
+            auto = os.environ.get("CHARWEB_AUTOCONFIRM", "").lower() in {"1", "true", "yes", "on"}
+            if not confirmed and not auto:
                 return AddonResult("confirmation_required", "Browser interaction can change website state. Review the steps, then confirm.", payload)
             return self._interact(payload, session_key)
         return AddonResult("invalid", "Supported actions: research, browse, interact.")
