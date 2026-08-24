@@ -25,12 +25,60 @@ class WebBrowserAddon(Addon):
     def _session_key(self, actor_name: str, actor_role: str) -> tuple[str, str] | None:
         return None if actor_role == "guest" else (actor_name, actor_role)
 
+    @staticmethod
+    def _run_label_headers() -> dict:
+        """Charweb research run-labels from env vars, so sessions Fenris drives
+        are recorded with harness/model/etc. on the server (see Charweb
+        routes.track). Empty unless the CHARWEB_* vars are set at launch."""
+        import os
+        env_to_hdr = {
+            "CHARWEB_RUN_ID": "X-Run-Id",
+            "CHARWEB_HARNESS": "X-Harness",
+            "CHARWEB_MODEL": "X-Model",
+            "CHARWEB_INSTRUCTION": "X-Instruction",
+            "CHARWEB_ADV_CONDITION": "X-Adv-Condition",
+            "CHARWEB_MIMICRY_TARGET": "X-Mimicry-Target",
+        }
+        return {h: os.environ[e] for e, h in env_to_hdr.items() if os.environ.get(e)}
+
+    @staticmethod
+    def _run_label_cookies() -> list:
+        """Same Charweb run-labels as _run_label_headers, but as cookies scoped
+        to the Charweb origin (CHARWEB_SITE, default https://charweb.net).
+        Needed because this addon opens a short-lived browser per action: its
+        events flush on page-hide via sendBeacon/keepalive, which DROP the X-*
+        headers, so header-only labelling records the session as None/None.
+        Cookies ride every request automatically, so the label always lands.
+        The Charweb server reads header-then-cookie (see routes.track)."""
+        import os
+        site = os.environ.get("CHARWEB_SITE", "https://charweb.net")
+        env_to_cookie = {
+            "CHARWEB_RUN_ID": "cw_run_id",
+            "CHARWEB_HARNESS": "cw_harness",
+            "CHARWEB_MODEL": "cw_model",
+            "CHARWEB_INSTRUCTION": "cw_instruction",
+            "CHARWEB_ADV_CONDITION": "cw_adv_condition",
+            "CHARWEB_MIMICRY_TARGET": "cw_mimicry_target",
+        }
+        return [{"name": c, "value": os.environ[e], "url": site}
+                for e, c in env_to_cookie.items() if os.environ.get(e)]
+
     def _new_context(self, browser, session_key: tuple[str, str] | None):
         state = None
         if session_key is not None:
             with self._lock:
                 state = self._storage_states.get(session_key)
-        return browser.new_context(storage_state=state) if state else browser.new_context()
+        context = browser.new_context(storage_state=state) if state else browser.new_context()
+        headers = self._run_label_headers()
+        if headers:
+            context.set_extra_http_headers(headers)
+        cookies = self._run_label_cookies()
+        if cookies:
+            try:
+                context.add_cookies(cookies)
+            except Exception:
+                pass
+        return context
 
     def _remember_context(self, context, session_key: tuple[str, str] | None) -> None:
         if session_key is None:
