@@ -1,4 +1,5 @@
 import json
+import time
 from typing import Callable
 
 from backend.brain.prompt import SYSTEM_PROMPT
@@ -132,7 +133,23 @@ class LocalProvider:
                 # tool_calls that the server rejects with "This model only
                 # supports single tool-calls at once". Force single-call mode.
                 create_kwargs["parallel_tool_calls"] = False
-            response = self.client.chat.completions.create(**create_kwargs)
+            # Retry transient rate/capacity errors (NIM returns 503
+            # "ResourceExhausted / Worker ... request limit reached" under load)
+            # with exponential backoff, so one blip doesn't kill the whole
+            # mission. Non-transient errors re-raise immediately.
+            response = None
+            for attempt in range(6):
+                try:
+                    response = self.client.chat.completions.create(**create_kwargs)
+                    break
+                except Exception as error:
+                    msg = str(error)
+                    transient = any(s in msg for s in (
+                        "503", "ResourceExhausted", "request limit", "rate limit",
+                        "Too Many Requests", "429", "overloaded", "timeout", "Timeout"))
+                    if not transient or attempt == 5:
+                        raise
+                    time.sleep(min(2 ** attempt, 30))
             message = response.choices[0].message
             text = (message.content or "").strip()
             tool_calls = message.tool_calls or []
