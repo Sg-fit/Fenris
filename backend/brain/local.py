@@ -119,13 +119,20 @@ class LocalProvider:
             conversation.extend(self._resolve_pending(conversation[-1], resume_answer))
 
         for _ in range(self.MAX_STEPS):
-            response = self.client.chat.completions.create(
+            create_kwargs = dict(
                 model=Settings.LOCAL_MODEL,
                 max_tokens=Settings.LOCAL_MAX_TOKENS,
                 messages=[{"role": "system", "content": system}, *conversation],
                 tools=tools,
                 tool_choice="auto" if tools else None,
             )
+            if tools:
+                # NIM (and some other OpenAI-compatible servers) only allow ONE
+                # tool call per turn; without this the model can emit parallel
+                # tool_calls that the server rejects with "This model only
+                # supports single tool-calls at once". Force single-call mode.
+                create_kwargs["parallel_tool_calls"] = False
+            response = self.client.chat.completions.create(**create_kwargs)
             message = response.choices[0].message
             text = (message.content or "").strip()
             tool_calls = message.tool_calls or []
