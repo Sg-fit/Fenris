@@ -257,8 +257,8 @@ class WebBrowserAddon(Addon):
 
     def _interact(self, payload: dict, session_key: tuple[str, str] | None) -> AddonResult:
         steps = payload.get("steps")
-        if not isinstance(steps, list) or not 1 <= len(steps) <= 12:
-            return AddonResult("invalid", "steps must contain 1 to 12 explicit browser steps.")
+        if not isinstance(steps, list) or not 1 <= len(steps) <= 40:
+            return AddonResult("invalid", "steps must contain 1 to 40 explicit browser steps.")
         # A visible window only appears when the user actually asked to watch;
         # otherwise this runs headless like research/browse.
         show_window = bool(payload.get("show_window", False))

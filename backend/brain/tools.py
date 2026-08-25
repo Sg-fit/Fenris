@@ -42,7 +42,7 @@ TOOLS = [
                 "steps": {
                     "type": "array",
                     "minItems": 1,
-                    "maxItems": 12,
+                    "maxItems": 40,
                     "items": {
                         "type": "object",
                         "properties": {
